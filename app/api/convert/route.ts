@@ -108,6 +108,39 @@ async function pdfToWord(file: File): Promise<Buffer> {
   return Packer.toBuffer(doc);
 }
 
+// ── PDF Çevir ─────────────────────────────────────────────────────────────────
+
+const LANG_CODES: Record<string, string> = {
+  İngilizce: "EN", Almanca: "DE", Fransızca: "FR", İspanyolca: "ES",
+  Arapça: "AR", Rusça: "RU", Japonca: "JA", Çince: "ZH",
+};
+
+async function translatePDF(file: File, targetLanguage: string): Promise<Buffer> {
+  const text = await extractWithClaude(
+    file,
+    `Bu PDF belgesinin tüm içeriğini ${targetLanguage} diline çevir. Belgenin yapısını ve bölüm başlıklarını koru; başlıkları "## Başlık" formatında yaz. Yalnızca çeviriyi ver, yorum veya açıklama ekleme.`
+  );
+
+  const children: Paragraph[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      children.push(new Paragraph({ text: "" }));
+    } else if (trimmed.startsWith("## ")) {
+      children.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2 }));
+    } else if (trimmed.startsWith("# ")) {
+      children.push(new Paragraph({ text: trimmed.slice(2), heading: HeadingLevel.HEADING_1 }));
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+      children.push(new Paragraph({ text: trimmed.slice(2), bullet: { level: 0 } }));
+    } else {
+      children.push(new Paragraph({ children: [new TextRun(trimmed)] }));
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  return Packer.toBuffer(doc);
+}
+
 // ── PDF → Excel ───────────────────────────────────────────────────────────────
 
 async function pdfToExcel(file: File): Promise<Buffer> {
@@ -184,6 +217,15 @@ export async function POST(req: NextRequest) {
         resultBuffer = await pdfToExcel(files[0]);
         mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         filename = files[0].name.replace(/\.pdf$/i, "") + ".xlsx";
+        break;
+      }
+      case "translate": {
+        const lang = (formData.get("language") as string) || "İngilizce";
+        const code = LANG_CODES[lang] ?? lang.slice(0, 2).toUpperCase();
+        const base = files[0].name.replace(/\.pdf$/i, "");
+        resultBuffer = await translatePDF(files[0], lang);
+        mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        filename = `${base}_${code}.docx`;
         break;
       }
       default:

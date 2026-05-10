@@ -6,7 +6,7 @@ import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 // ── Tool tanımları ────────────────────────────────────────────────────────────
 
-type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split";
+type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate";
 
 interface Tool {
   id: ToolId;
@@ -97,6 +97,24 @@ const TOOLS: Tool[] = [
       </svg>
     ),
   },
+  {
+    id: "translate",
+    label: "PDF Çevir",
+    description: "PDF belgenizi istediğiniz dile çevirin, DOCX olarak indirin.",
+    accept: ".pdf,application/pdf",
+    multiple: false,
+    resultLabel: "Çeviriyi İndir",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+      </svg>
+    ),
+  },
+];
+
+const LANGUAGES = [
+  "İngilizce", "Almanca", "Fransızca", "İspanyolca",
+  "Arapça", "Rusça", "Japonca", "Çince",
 ];
 
 // ── Yardımcılar ───────────────────────────────────────────────────────────────
@@ -114,6 +132,7 @@ export default function AppPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [splitFrom, setSplitFrom] = useState(1);
   const [splitTo, setSplitTo] = useState(1);
+  const [targetLang, setTargetLang] = useState("İngilizce");
   const [converting, setConverting] = useState(false);
   const [result, setResult] = useState<{ url: string; filename: string; originalSize?: number; resultSize?: number } | null>(null);
   const [convError, setConvError] = useState<string | null>(null);
@@ -193,6 +212,9 @@ export default function AppPage() {
       if (selectedTool === "split") {
         fd.append("from", String(splitFrom));
         fd.append("to", String(splitTo));
+      }
+      if (selectedTool === "translate") {
+        fd.append("language", targetLang);
       }
 
       const res = await fetch("/api/convert", { method: "POST", body: fd });
@@ -346,6 +368,28 @@ export default function AppPage() {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {/* Dil seçimi */}
+            {selectedTool === "translate" && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                <p className="mb-3 text-sm font-medium text-slate-700">Hedef Dil</p>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setTargetLang(lang)}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                        targetLang === lang
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Split sayfaları */}
