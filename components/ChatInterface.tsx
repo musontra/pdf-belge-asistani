@@ -209,6 +209,23 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
               </div>
             </div>
           ))}
+
+          {/* Hazır prompt butonları */}
+          {!hasAsked && (
+            <div className="flex flex-wrap justify-center gap-2 pt-2">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => sendMessage(prompt)}
+                  disabled={isStreaming}
+                  className="rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -225,22 +242,6 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-        </div>
-      )}
-
-      {/* Hazır prompt butonları */}
-      {!hasAsked && (
-        <div className="mx-4 mb-3 flex flex-wrap justify-center gap-2">
-          {QUICK_PROMPTS.map((prompt) => (
-            <button
-              key={prompt}
-              onClick={() => sendMessage(prompt)}
-              disabled={isStreaming}
-              className="rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {prompt}
-            </button>
-          ))}
         </div>
       )}
 
