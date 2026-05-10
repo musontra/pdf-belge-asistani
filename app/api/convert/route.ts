@@ -164,6 +164,26 @@ async function pdfToExcel(file: File): Promise<Buffer> {
   return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer);
 }
 
+// ── JPG/PNG → PDF ─────────────────────────────────────────────────────────────
+
+async function jpgsToPDF(files: File[]): Promise<Uint8Array> {
+  const { default: sharp } = await import("sharp");
+  const pdf = await PDFDocument.create();
+
+  for (const file of files) {
+    const inputBuf = Buffer.from(await file.arrayBuffer());
+    const jpegBuf = await sharp(inputBuf).jpeg({ quality: 90 }).toBuffer();
+    const meta = await sharp(jpegBuf).metadata();
+    const img = await pdf.embedJpg(jpegBuf);
+    const w = meta.width ?? img.width;
+    const h = meta.height ?? img.height;
+    const page = pdf.addPage([w, h]);
+    page.drawImage(img, { x: 0, y: 0, width: w, height: h });
+  }
+
+  return pdf.save();
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -226,6 +246,15 @@ export async function POST(req: NextRequest) {
         resultBuffer = await translatePDF(files[0], lang);
         mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `${base}_${code}.docx`;
+        break;
+      }
+      case "jpg-to-pdf": {
+        resultBuffer = await jpgsToPDF(files);
+        mimeType = "application/pdf";
+        filename =
+          files.length === 1
+            ? files[0].name.replace(/\.[^.]+$/, "") + ".pdf"
+            : "gorseller.pdf";
         break;
       }
       default:

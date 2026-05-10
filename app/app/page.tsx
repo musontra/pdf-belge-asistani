@@ -6,7 +6,7 @@ import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 // ── Tool tanımları ────────────────────────────────────────────────────────────
 
-type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate";
+type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf";
 
 interface Tool {
   id: ToolId;
@@ -110,6 +110,32 @@ const TOOLS: Tool[] = [
       </svg>
     ),
   },
+  {
+    id: "pdf-to-jpg",
+    label: "PDF → JPG",
+    description: "Her PDF sayfasını ayrı JPG görsellerine dönüştürün.",
+    accept: ".pdf,application/pdf",
+    multiple: false,
+    resultLabel: "JPG İndir",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "jpg-to-pdf",
+    label: "JPG → PDF",
+    description: "Bir veya birden fazla görsel dosyasını tek PDF'e dönüştürün.",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+    multiple: true,
+    resultLabel: "PDF'i İndir",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
 ];
 
 const LANGUAGES = [
@@ -204,6 +230,65 @@ export default function AppPage() {
     setConverting(true);
     setConvError(null);
     setResult(null);
+
+    // PDF → JPG runs entirely in the browser (no server rendering needed)
+    if (selectedTool === "pdf-to-jpg") {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+
+        const file = files[0];
+        const data = new Uint8Array(await file.arrayBuffer());
+        const pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+        const numPages = pdfDoc.numPages;
+        const baseName = file.name.replace(/\.pdf$/i, "");
+        const blobs: Blob[] = [];
+
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas bağlamı oluşturulamadı");
+          await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+          const blob = await new Promise<Blob>((resolve, reject) =>
+            canvas.toBlob(
+              (b) => (b ? resolve(b) : reject(new Error("Görsel oluşturulamadı"))),
+              "image/jpeg",
+              0.9
+            )
+          );
+          blobs.push(blob);
+        }
+
+        let url: string;
+        let filename: string;
+        let resultSize: number;
+
+        if (blobs.length === 1) {
+          url = URL.createObjectURL(blobs[0]);
+          filename = `${baseName}.jpg`;
+          resultSize = blobs[0].size;
+        } else {
+          const { default: JSZip } = await import("jszip");
+          const zip = new JSZip();
+          blobs.forEach((b, i) => zip.file(`${baseName}_sayfa_${i + 1}.jpg`, b));
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          url = URL.createObjectURL(zipBlob);
+          filename = `${baseName}_sayfalar.zip`;
+          resultSize = zipBlob.size;
+        }
+
+        setResult({ url, filename, originalSize: file.size, resultSize });
+      } catch (err) {
+        setConvError((err as Error).message || "Dönüştürme başarısız.");
+      } finally {
+        setConverting(false);
+      }
+      return;
+    }
 
     try {
       const fd = new FormData();
