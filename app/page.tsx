@@ -43,12 +43,20 @@ export default function LandingPage() {
           </div>
           <span className="text-sm font-bold text-slate-900">Ders Asistanı</span>
         </div>
-        <Link
-          href="/app"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          Hemen Başla
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/quiz"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Sınav Modu
+          </Link>
+          <Link
+            href="/app"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Hemen Başla
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
@@ -93,6 +101,32 @@ export default function LandingPage() {
               <p className="mt-2 text-xs leading-relaxed text-slate-500">{f.description}</p>
             </div>
           ))}
+        </div>
+
+        {/* Sınav Modu CTA */}
+        <div className="mt-12 w-full max-w-3xl overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50">
+          <div className="flex flex-col items-center gap-5 p-8 text-center sm:flex-row sm:text-left">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700">
+                Yeni
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Konu Sınavı Modu</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Konu gir ya da PDF yükle — çoktan seçmeli, açık uçlu veya karışık sınav oluştur. Bitirince sonuçlarını gör.
+              </p>
+            </div>
+            <Link
+              href="/quiz"
+              className="shrink-0 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            >
+              Sınava Gir
+            </Link>
+          </div>
         </div>
 
         {/* Nasıl çalışır */}
