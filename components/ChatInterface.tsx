@@ -99,7 +99,6 @@ export default function ChatInterface({
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasAsked, setHasAsked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -114,7 +113,6 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (isReady && messages.length === 0) {
-      setHasAsked(false);
       setMessages([
         {
           role: "assistant",
@@ -137,7 +135,6 @@ export default function ChatInterface({
     if (!trimmed || isStreaming || !isReady || isLimitReached) return;
 
     onMessageSent();
-    setHasAsked(true);
     const userMessage: Message = { role: "user", content: trimmed };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
@@ -272,22 +269,6 @@ export default function ChatInterface({
             </div>
           ))}
 
-          {/* Hazır prompt butonları */}
-          {!hasAsked && (
-            <div className="flex flex-wrap justify-center gap-2 pt-2">
-              {QUICK_PROMPTS.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => sendMessage(item.prompt)}
-                  disabled={isStreaming || isLimitReached}
-                  className="rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -307,8 +288,24 @@ export default function ChatInterface({
         </div>
       )}
 
+      {/* Hazır prompt butonları */}
+      <div className="border-t border-slate-100 bg-white px-4 pt-3 pb-1">
+        <div className="mx-auto flex max-w-2xl flex-wrap gap-2">
+          {QUICK_PROMPTS.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => sendMessage(item.prompt)}
+              disabled={isStreaming || isLimitReached}
+              className="rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Input alanı */}
-      <div className="border-t border-slate-200 bg-white p-4">
+      <div className="border-t border-slate-200 bg-white px-4 pb-4 pt-2">
         <div className="mx-auto max-w-2xl">
           {isLimitReached ? (
             <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
