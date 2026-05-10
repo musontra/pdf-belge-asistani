@@ -110,7 +110,7 @@ export default function PageEditor({ onPdfLoaded }: PageEditorProps) {
 
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const data = new Uint8Array(await f.arrayBuffer());
         const pdf = await pdfjsLib.getDocument({ data }).promise;
 

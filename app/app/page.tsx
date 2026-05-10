@@ -249,7 +249,7 @@ export default function AppPage() {
     if (selectedTool === "pdf-to-jpg") {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const file = files[0];
         const data = new Uint8Array(await file.arrayBuffer());
