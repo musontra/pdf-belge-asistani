@@ -46,8 +46,8 @@ function parseFlashcards(text: string): { soru: string; cevap: string }[] {
   const cards: { soru: string; cevap: string }[] = [];
   const blocks = text.split(/\[KART \d+\]/);
   for (const block of blocks) {
-    const soruMatch = block.match(/Soru:\s*(.+?)(?=\nCevap:)/s);
-    const cevapMatch = block.match(/Cevap:\s*(.+?)(?=\n\n|$)/s);
+    const soruMatch = block.match(/Soru:\s*([\s\S]+?)(?=\nCevap:)/);
+    const cevapMatch = block.match(/Cevap:\s*([\s\S]+?)(?=\n\n|$)/);
     if (soruMatch && cevapMatch) {
       cards.push({ soru: soruMatch[1].trim(), cevap: cevapMatch[1].trim() });
     }
