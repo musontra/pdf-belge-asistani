@@ -13,11 +13,19 @@ interface ChatInterfaceProps {
   isReady: boolean;
 }
 
+const QUICK_PROMPTS = [
+  "Belgeyi özetle",
+  "Riskli maddeleri bul",
+  "Önemli tarihleri listele",
+  "Sade dille açıkla",
+];
+
 export default function ChatInterface({ documentText, documentName, isReady }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAsked, setHasAsked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -32,6 +40,7 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
 
   useEffect(() => {
     if (isReady && messages.length === 0) {
+      setHasAsked(false);
       setMessages([
         {
           role: "assistant",
@@ -49,10 +58,11 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
     }
   };
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
+  const sendMessage = async (promptOverride?: string) => {
+    const trimmed = (promptOverride ?? input).trim();
     if (!trimmed || isStreaming || !isReady) return;
 
+    setHasAsked(true);
     const userMessage: Message = { role: "user", content: trimmed };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
@@ -215,6 +225,22 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Hazır prompt butonları */}
+      {!hasAsked && (
+        <div className="mx-4 mb-3 flex flex-wrap justify-center gap-2">
+          {QUICK_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => sendMessage(prompt)}
+              disabled={isStreaming}
+              className="rounded-full border border-blue-200 bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {prompt}
+            </button>
+          ))}
         </div>
       )}
 
