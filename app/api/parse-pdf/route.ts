@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+// No worker thread in serverless – pdfjs falls back to main-thread processing
+pdfjs.GlobalWorkerOptions.workerSrc = "";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.type !== "application/pdf") {
-      return NextResponse.json({ error: "Sadece PDF dosyaları kabul edilmektedir." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Sadece PDF dosyaları kabul edilmektedir." },
+        { status: 400 }
+      );
     }
 
     // Vercel Hobby: 4.5 MB platform limit; Pro: 100 MB
@@ -22,25 +28,48 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE) {
       const limitMb = Math.round(MAX_SIZE / 1024 / 1024);
       return NextResponse.json(
-        { error: `Dosya boyutu ${limitMb} MB'ı geçemez. Daha büyük dosyalar için Pro plan gereklidir.` },
+        {
+          error: `Dosya boyutu ${limitMb} MB'ı geçemez. Daha büyük dosyalar için Pro plan gereklidir.`,
+        },
         { status: 413 }
       );
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
-    // pdf-parse v2.x uses a class-based API; the old function call and
-    // the lib/pdf-parse.js internal path from v1.x no longer exist.
-    const parser = new PDFParse({ data: buffer });
-    let result;
-    try {
-      result = await parser.getText();
-    } finally {
-      await parser.destroy();
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(arrayBuffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      disableStream: true,
+      disableAutoFetch: true,
+    });
+
+    const doc = await loadingTask.promise;
+    const pageCount = doc.numPages;
+
+    const pageTexts: string[] = [];
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      const page = await doc.getPage(pageNum);
+      const content = await page.getTextContent();
+
+      // TextItem has `str`+`hasEOL`; TextMarkedContent does not
+      const pageText = content.items
+        .filter((item) => "str" in item)
+        .map((item) => {
+          const { str, hasEOL } = item as { str: string; hasEOL: boolean };
+          return str + (hasEOL ? "\n" : " ");
+        })
+        .join("");
+
+      pageTexts.push(pageText.trim());
+      page.cleanup();
     }
 
-    const text = result.text.trim();
+    await doc.destroy();
+
+    const text = pageTexts.join("\n\n").trim();
+
     if (!text) {
       return NextResponse.json(
         { error: "PDF içeriği okunamadı. Belge taranmış görüntü içeriyor olabilir." },
@@ -48,11 +77,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      text,
-      pageCount: result.total,
-      fileName: file.name,
-    });
+    return NextResponse.json({ text, pageCount, fileName: file.name });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error("[parse-pdf]", detail, err);
