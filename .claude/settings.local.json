@@ -3,7 +3,11 @@
     "allow": [
       "PowerShell(Get-ChildItem *)",
       "PowerShell(New-Item *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(npm install *)",
+      "Bash(rmdir /s /q \"app\\\\quiz\")",
+      "Bash(rmdir /s /q \"app\\\\api\\\\quiz\")",
+      "Bash(npx tsc *)"
     ]
   }
 }
