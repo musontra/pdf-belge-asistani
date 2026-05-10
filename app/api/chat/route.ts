@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Hobby: 10s cap, Pro: 60s
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+export const maxDuration = 60;
 
 interface Message {
   role: "user" | "assistant";
@@ -16,6 +12,12 @@ interface Message {
 const MAX_DOC_CHARS = 150_000;
 
 export async function POST(request: NextRequest) {
+  // Initialize inside handler so ANTHROPIC_API_KEY is guaranteed to be
+  // read from the live environment, not from a stale module-level snapshot.
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+
   try {
     const body = await request.json();
     const { messages, documentText, documentName } = body as {
@@ -26,6 +28,13 @@ export async function POST(request: NextRequest) {
 
     if (!messages?.length || !documentText) {
       return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { error: "Sunucu yapılandırma hatası: API anahtarı eksik." },
+        { status: 500 }
+      );
     }
 
     const truncatedDoc =
@@ -83,8 +92,8 @@ Talimatlar:
     return new Response(readableStream, {
       headers: {
         "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch {

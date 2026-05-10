@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string; numpages: number }>;
 
 export const runtime = "nodejs";
-export const maxDuration = 30; // Hobby: 10s cap, Pro: 30s
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +28,14 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Import inside handler: pdf-parse's index.js reads test/data/ at require-time,
+    // which doesn't exist in Vercel's build output and crashes the cold start.
+    // lib/pdf-parse.js is the actual parser without that side-effect.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
+      buffer: Buffer
+    ) => Promise<{ text: string; numpages: number }>;
 
     const data = await pdfParse(buffer);
 
