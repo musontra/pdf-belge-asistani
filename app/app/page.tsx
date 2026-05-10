@@ -3,12 +3,14 @@
 import { useState } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import ChatInterface from "@/components/ChatInterface";
+import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 export default function Home() {
   const [documentText, setDocumentText] = useState("");
   const [documentName, setDocumentName] = useState("");
   const [pageCount, setPageCount] = useState(0);
   const [hasDocument, setHasDocument] = useState(false);
+  const { count, isLimitReached, limit, increment, ready } = useUsageLimit();
 
   const handleDocumentReady = (text: string, name: string, pages: number) => {
     setDocumentText(text);
@@ -41,7 +43,7 @@ export default function Home() {
 
       {/* Ana içerik */}
       <main className="flex flex-1 overflow-hidden">
-        {/* Sol panel – PDF yükleme */}
+        {/* Sol panel */}
         <aside className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r border-slate-200 bg-white p-5 lg:w-80">
           <div>
             <h2 className="text-sm font-semibold text-slate-800">PDF Belgesi</h2>
@@ -57,6 +59,35 @@ export default function Home() {
             pageCount={pageCount}
             onReset={handleReset}
           />
+
+          {/* Kullanım göstergesi */}
+          {ready && (
+            <div className={`rounded-lg p-4 ${isLimitReached ? "bg-red-50" : "bg-slate-50"}`}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Günlük Kullanım
+              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <span className={`text-xs font-medium ${isLimitReached ? "text-red-600" : "text-slate-700"}`}>
+                  {count}/{limit} soru kullanıldı
+                </span>
+                {isLimitReached && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Doldu</span>
+                )}
+              </div>
+              {/* Progress bar */}
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${isLimitReached ? "bg-red-500" : "bg-blue-500"}`}
+                  style={{ width: `${Math.min((count / limit) * 100, 100)}%` }}
+                />
+              </div>
+              {!isLimitReached && (
+                <p className="mt-2 text-[11px] text-slate-400">
+                  {limit - count} soru hakkınız kaldı
+                </p>
+              )}
+            </div>
+          )}
 
           {!hasDocument && (
             <div className="rounded-lg bg-slate-50 p-4">
@@ -91,6 +122,8 @@ export default function Home() {
             documentText={documentText}
             documentName={documentName}
             isReady={hasDocument}
+            isLimitReached={isLimitReached}
+            onMessageSent={increment}
           />
         </section>
       </main>
