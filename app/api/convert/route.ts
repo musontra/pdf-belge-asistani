@@ -164,6 +164,18 @@ async function pdfToExcel(file: File): Promise<Buffer> {
   return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer);
 }
 
+// ── Sayfa Yeniden Sırala / Sil ────────────────────────────────────────────────
+
+async function reorderPDF(file: File, pageNums: number[]): Promise<Uint8Array> {
+  const bytes = await file.arrayBuffer();
+  const src = await PDFDocument.load(bytes);
+  const out = await PDFDocument.create();
+  const indices = pageNums.map((n) => n - 1);
+  const pages = await out.copyPages(src, indices);
+  pages.forEach((p) => out.addPage(p));
+  return out.save();
+}
+
 // ── JPG/PNG → PDF ─────────────────────────────────────────────────────────────
 
 async function jpgsToPDF(files: File[]): Promise<Uint8Array> {
@@ -246,6 +258,13 @@ export async function POST(req: NextRequest) {
         resultBuffer = await translatePDF(files[0], lang);
         mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `${base}_${code}.docx`;
+        break;
+      }
+      case "reorder": {
+        const pageNums = JSON.parse(formData.get("pages") as string) as number[];
+        resultBuffer = await reorderPDF(files[0], pageNums);
+        mimeType = "application/pdf";
+        filename = files[0].name.replace(/\.pdf$/i, "") + "_düzenlendi.pdf";
         break;
       }
       case "jpg-to-pdf": {

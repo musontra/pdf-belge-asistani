@@ -2,11 +2,12 @@
 
 import { useState, useRef, useCallback } from "react";
 import ChatInterface from "@/components/ChatInterface";
+import PageEditor from "@/components/PageEditor";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 // ── Tool tanımları ────────────────────────────────────────────────────────────
 
-type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf";
+type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf" | "page-edit";
 
 interface Tool {
   id: ToolId;
@@ -133,6 +134,19 @@ const TOOLS: Tool[] = [
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "page-edit",
+    label: "Sayfa Düzenle",
+    description: "Sayfaları sürükle-bırak ile yeniden sıralayın, istemediğiniz sayfaları silin.",
+    accept: ".pdf,application/pdf",
+    multiple: false,
+    resultLabel: "PDF Oluştur",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
       </svg>
     ),
   },
@@ -393,177 +407,183 @@ export default function AppPage() {
             <h2 className="text-lg font-bold text-slate-900">{tool.label}</h2>
             <p className="mt-0.5 text-sm text-slate-500">{tool.description}</p>
 
-            {/* Dosya yükleme alanı */}
-            <div
-              className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition ${
-                isDragging
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-slate-300 bg-white hover:border-blue-300 hover:bg-slate-50"
-              }`}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={tool.accept}
-                multiple={tool.multiple}
-                className="hidden"
-                onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
-              />
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-                {tool.icon}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">
-                  {isDragging ? "Dosyayı bırakın" : "Dosya seçin veya sürükleyin"}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {tool.multiple ? "Birden fazla dosya seçebilirsiniz" : "Tek dosya"}
-                </p>
-              </div>
-            </div>
+            {selectedTool === "page-edit" ? (
+              <PageEditor onPdfLoaded={parsePDFForAI} />
+            ) : (
+              <>
+                {/* Dosya yükleme alanı */}
+                <div
+                  className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition ${
+                    isDragging
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-slate-300 bg-white hover:border-blue-300 hover:bg-slate-50"
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={tool.accept}
+                    multiple={tool.multiple}
+                    className="hidden"
+                    onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
+                  />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                    {tool.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {isDragging ? "Dosyayı bırakın" : "Dosya seçin veya sürükleyin"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {tool.multiple ? "Birden fazla dosya seçebilirsiniz" : "Tek dosya"}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Seçili dosyalar */}
-            {files.length > 0 && (
-              <ul className="mt-3 space-y-2">
-                {files.map((f, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
-                  >
-                    <svg className="h-5 w-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{f.name}</span>
-                    <span className="shrink-0 text-xs text-slate-400">{formatBytes(f.size)}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFiles((prev) => prev.filter((_, j) => j !== i));
-                      }}
-                      className="ml-1 shrink-0 text-slate-300 hover:text-red-500"
+                {/* Seçili dosyalar */}
+                {files.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {files.map((f, i) => (
+                      <li
+                        key={i}
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
+                      >
+                        <svg className="h-5 w-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{f.name}</span>
+                        <span className="shrink-0 text-xs text-slate-400">{formatBytes(f.size)}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFiles((prev) => prev.filter((_, j) => j !== i));
+                          }}
+                          className="ml-1 shrink-0 text-slate-300 hover:text-red-500"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Dil seçimi */}
+                {selectedTool === "translate" && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-sm font-medium text-slate-700">Hedef Dil</p>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGES.map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => setTargetLang(lang)}
+                          className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                            targetLang === lang
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Split sayfaları */}
+                {selectedTool === "split" && files.length > 0 && (
+                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                    <span className="text-sm text-slate-600">Sayfa aralığı:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={splitFrom}
+                      onChange={(e) => setSplitFrom(parseInt(e.target.value) || 1)}
+                      className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm outline-none focus:border-blue-400"
+                    />
+                    <span className="text-slate-400">—</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={splitTo}
+                      onChange={(e) => setSplitTo(parseInt(e.target.value) || 1)}
+                      className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm outline-none focus:border-blue-400"
+                    />
+                  </div>
+                )}
+
+                {/* Hata */}
+                {convError && (
+                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {convError}
+                  </div>
+                )}
+
+                {/* Dönüştür butonu */}
+                <button
+                  onClick={convert}
+                  disabled={!canConvert}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {converting ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Dönüştürülüyor...
+                    </>
+                  ) : (
+                    "Dönüştür"
+                  )}
+                </button>
+
+                {/* AI parse durumu */}
+                {parsing && (
+                  <p className="mt-2 text-center text-xs text-slate-400">AI asistanı için belge okunuyor...</p>
+                )}
+
+                {/* İndirme alanı */}
+                {result && (
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                        <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-emerald-800">Dönüştürme tamamlandı!</p>
+                        {result.originalSize && result.resultSize && (
+                          <p className="mt-0.5 text-xs text-emerald-600">
+                            {formatBytes(result.originalSize)} → {formatBytes(result.resultSize)}
+                            {result.resultSize < result.originalSize && (
+                              <span className="ml-1 font-medium">
+                                (%{Math.round((1 - result.resultSize / result.originalSize) * 100)} küçüldü)
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={result.url}
+                      download={result.filename}
+                      className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Dil seçimi */}
-            {selectedTool === "translate" && (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-sm font-medium text-slate-700">Hedef Dil</p>
-                <div className="flex flex-wrap gap-2">
-                  {LANGUAGES.map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => setTargetLang(lang)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                        targetLang === lang
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Split sayfaları */}
-            {selectedTool === "split" && files.length > 0 && (
-              <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
-                <span className="text-sm text-slate-600">Sayfa aralığı:</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={splitFrom}
-                  onChange={(e) => setSplitFrom(parseInt(e.target.value) || 1)}
-                  className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm outline-none focus:border-blue-400"
-                />
-                <span className="text-slate-400">—</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={splitTo}
-                  onChange={(e) => setSplitTo(parseInt(e.target.value) || 1)}
-                  className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm outline-none focus:border-blue-400"
-                />
-              </div>
-            )}
-
-            {/* Hata */}
-            {convError && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {convError}
-              </div>
-            )}
-
-            {/* Dönüştür butonu */}
-            <button
-              onClick={convert}
-              disabled={!canConvert}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {converting ? (
-                <>
-                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Dönüştürülüyor...
-                </>
-              ) : (
-                "Dönüştür"
-              )}
-            </button>
-
-            {/* AI parse durumu */}
-            {parsing && (
-              <p className="mt-2 text-center text-xs text-slate-400">AI asistanı için belge okunuyor...</p>
-            )}
-
-            {/* İndirme alanı */}
-            {result && (
-              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-                    <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                      {tool.resultLabel}
+                    </a>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-emerald-800">Dönüştürme tamamlandı!</p>
-                    {result.originalSize && result.resultSize && (
-                      <p className="mt-0.5 text-xs text-emerald-600">
-                        {formatBytes(result.originalSize)} → {formatBytes(result.resultSize)}
-                        {result.resultSize < result.originalSize && (
-                          <span className="ml-1 font-medium">
-                            (%{Math.round((1 - result.resultSize / result.originalSize) * 100)} küçüldü)
-                          </span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <a
-                  href={result.url}
-                  download={result.filename}
-                  className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  {tool.resultLabel}
-                </a>
-              </div>
+                )}
+              </>
             )}
           </div>
         </main>
