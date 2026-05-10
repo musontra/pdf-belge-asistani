@@ -271,7 +271,7 @@ export default function ChatInterface({ documentText, documentName, isReady }: C
               </button>
             ) : (
               <button
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={!input.trim()}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                 title="Gönder (Enter)"
