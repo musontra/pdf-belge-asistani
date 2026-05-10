@@ -7,7 +7,7 @@ import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 // ── Tool tanımları ────────────────────────────────────────────────────────────
 
-type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf" | "page-edit";
+type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf" | "page-edit" | "watermark";
 
 interface Tool {
   id: ToolId;
@@ -138,6 +138,19 @@ const TOOLS: Tool[] = [
     ),
   },
   {
+    id: "watermark",
+    label: "Watermark Ekle",
+    description: "PDF'in her sayfasına özel metin damgası ekleyin.",
+    accept: ".pdf,application/pdf",
+    multiple: false,
+    resultLabel: "Watermarklı PDF'i İndir",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+      </svg>
+    ),
+  },
+  {
     id: "page-edit",
     label: "Sayfa Düzenle",
     description: "Sayfaları sürükle-bırak ile yeniden sıralayın, istemediğiniz sayfaları silin.",
@@ -173,6 +186,10 @@ export default function AppPage() {
   const [splitFrom, setSplitFrom] = useState(1);
   const [splitTo, setSplitTo] = useState(1);
   const [targetLang, setTargetLang] = useState("İngilizce");
+  const [watermarkText, setWatermarkText] = useState("");
+  const [watermarkColor, setWatermarkColor] = useState("gray");
+  const [watermarkOpacity, setWatermarkOpacity] = useState("medium");
+  const [watermarkPosition, setWatermarkPosition] = useState("diagonal");
   const [converting, setConverting] = useState(false);
   const [result, setResult] = useState<{ url: string; filename: string; originalSize?: number; resultSize?: number } | null>(null);
   const [convError, setConvError] = useState<string | null>(null);
@@ -315,6 +332,12 @@ export default function AppPage() {
       if (selectedTool === "translate") {
         fd.append("language", targetLang);
       }
+      if (selectedTool === "watermark") {
+        fd.append("text",     watermarkText);
+        fd.append("color",    watermarkColor);
+        fd.append("opacity",  watermarkOpacity);
+        fd.append("position", watermarkPosition);
+      }
 
       const res = await fetch("/api/convert", { method: "POST", body: fd });
 
@@ -344,7 +367,10 @@ export default function AppPage() {
     }
   };
 
-  const canConvert = files.length > 0 && !converting;
+  const canConvert =
+    files.length > 0 &&
+    !converting &&
+    (selectedTool !== "watermark" || watermarkText.trim().length > 0);
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
@@ -491,6 +517,97 @@ export default function AppPage() {
                           {lang}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Watermark ayarları */}
+                {selectedTool === "watermark" && (
+                  <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+                    {/* Metin */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">Watermark Metni</label>
+                      <input
+                        type="text"
+                        value={watermarkText}
+                        onChange={(e) => setWatermarkText(e.target.value)}
+                        placeholder="GİZLİ, TASLAK, Şirket Adı..."
+                        maxLength={50}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    {/* Renk */}
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-slate-700">Renk</p>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          { key: "gray", label: "Gri",      dot: "bg-slate-400" },
+                          { key: "red",  label: "Kırmızı",  dot: "bg-red-500"   },
+                          { key: "blue", label: "Mavi",     dot: "bg-blue-500"  },
+                        ] as const).map(({ key, label, dot }) => (
+                          <button
+                            key={key}
+                            onClick={() => setWatermarkColor(key)}
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                              watermarkColor === key
+                                ? "border-blue-500 bg-blue-50 text-blue-700"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className={`h-3 w-3 rounded-full ${dot}`} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Opaklık */}
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-slate-700">Opaklık</p>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          { key: "light",  label: "Hafif" },
+                          { key: "medium", label: "Orta"  },
+                          { key: "dark",   label: "Koyu"  },
+                        ] as const).map(({ key, label }) => (
+                          <button
+                            key={key}
+                            onClick={() => setWatermarkOpacity(key)}
+                            className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                              watermarkOpacity === key
+                                ? "border-blue-500 bg-blue-50 text-blue-700"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Konum */}
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-slate-700">Konum</p>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          { key: "diagonal",     label: "Çapraz (Ortada)" },
+                          { key: "bottom-right", label: "Sağ Alt"         },
+                          { key: "bottom-left",  label: "Sol Alt"         },
+                        ] as const).map(({ key, label }) => (
+                          <button
+                            key={key}
+                            onClick={() => setWatermarkPosition(key)}
+                            className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                              watermarkPosition === key
+                                ? "border-blue-500 bg-blue-50 text-blue-700"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

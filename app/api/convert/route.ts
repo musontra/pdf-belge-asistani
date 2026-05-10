@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { Document, Paragraph, TextRun, HeadingLevel, Packer } from "docx";
 import * as XLSX from "xlsx";
 
@@ -164,6 +164,61 @@ async function pdfToExcel(file: File): Promise<Buffer> {
   return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer);
 }
 
+// ── Watermark ─────────────────────────────────────────────────────────────────
+
+const WATERMARK_COLORS: Record<string, [number, number, number]> = {
+  gray: [0.5,  0.5,  0.5 ],
+  red:  [0.8,  0.1,  0.1 ],
+  blue: [0.1,  0.2,  0.85],
+};
+
+const WATERMARK_OPACITIES: Record<string, number> = {
+  light:  0.15,
+  medium: 0.35,
+  dark:   0.6,
+};
+
+async function watermarkPDF(
+  file: File,
+  text: string,
+  colorKey: string,
+  opacityKey: string,
+  position: string
+): Promise<Uint8Array> {
+  const trimmed = text.trim();
+  if (!trimmed) return new Uint8Array(await file.arrayBuffer());
+
+  const bytes = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(bytes);
+  const font = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const [r, g, b] = WATERMARK_COLORS[colorKey] ?? WATERMARK_COLORS.gray;
+  const opacity    = WATERMARK_OPACITIES[opacityKey] ?? 0.35;
+  const color      = rgb(r, g, b);
+
+  for (const page of pdf.getPages()) {
+    const { width, height } = page.getSize();
+
+    if (position === "diagonal") {
+      const fontSize   = Math.min(width, height) * 0.13;
+      const textWidth  = font.widthOfTextAtSize(trimmed, fontSize);
+      const cos45      = Math.cos(Math.PI / 4);
+      // anchor so the midpoint of the rotated baseline lands at page center
+      const x = width  / 2 - (textWidth / 2) * cos45;
+      const y = height / 2 - (textWidth / 2) * cos45;
+      page.drawText(trimmed, { x, y, size: fontSize, font, color, opacity, rotate: degrees(45) });
+    } else {
+      const fontSize  = Math.min(width, height) * 0.045;
+      const textWidth = font.widthOfTextAtSize(trimmed, fontSize);
+      const margin    = 20;
+      const x = position === "bottom-right" ? width - textWidth - margin : margin;
+      page.drawText(trimmed, { x, y: margin, size: fontSize, font, color, opacity });
+    }
+  }
+
+  return pdf.save();
+}
+
 // ── Sayfa Yeniden Sırala / Sil ────────────────────────────────────────────────
 
 async function reorderPDF(file: File, pageNums: number[]): Promise<Uint8Array> {
@@ -258,6 +313,16 @@ export async function POST(req: NextRequest) {
         resultBuffer = await translatePDF(files[0], lang);
         mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `${base}_${code}.docx`;
+        break;
+      }
+      case "watermark": {
+        const text       = (formData.get("text")     as string) || "";
+        const colorKey   = (formData.get("color")    as string) || "gray";
+        const opacityKey = (formData.get("opacity")  as string) || "medium";
+        const position   = (formData.get("position") as string) || "diagonal";
+        resultBuffer = await watermarkPDF(files[0], text, colorKey, opacityKey, position);
+        mimeType = "application/pdf";
+        filename = files[0].name.replace(/\.pdf$/i, "") + "_watermark.pdf";
         break;
       }
       case "reorder": {
