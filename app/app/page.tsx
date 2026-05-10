@@ -3,11 +3,12 @@
 import { useState, useRef, useCallback } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import PageEditor from "@/components/PageEditor";
+import OcrPanel from "@/components/OcrPanel";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 // ── Tool tanımları ────────────────────────────────────────────────────────────
 
-type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf" | "page-edit" | "watermark";
+type ToolId = "pdf-to-word" | "pdf-to-excel" | "image-to-pdf" | "compress" | "merge" | "split" | "translate" | "pdf-to-jpg" | "jpg-to-pdf" | "page-edit" | "watermark" | "ocr";
 
 interface Tool {
   id: ToolId;
@@ -134,6 +135,19 @@ const TOOLS: Tool[] = [
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "ocr",
+    label: "OCR - Metin Tanı",
+    description: "Taranmış PDF veya görseldeki metni Claude AI ile çıkarın.",
+    accept: ".pdf,application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png",
+    multiple: false,
+    resultLabel: "",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z" />
       </svg>
     ),
   },
@@ -435,6 +449,8 @@ export default function AppPage() {
 
             {selectedTool === "page-edit" ? (
               <PageEditor onPdfLoaded={parsePDFForAI} />
+            ) : selectedTool === "ocr" ? (
+              <OcrPanel onFileLoaded={parsePDFForAI} />
             ) : (
               <>
                 {/* Dosya yükleme alanı */}
