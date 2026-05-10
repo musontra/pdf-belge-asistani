@@ -37,10 +37,6 @@ export default function Home() {
           <h1 className="text-base font-bold text-slate-900">PDF Belge Asistanı</h1>
           <p className="text-xs text-slate-500">Yapay zeka destekli belge analizi</p>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1">
-          <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-          <span className="text-xs font-medium text-blue-700">Claude AI</span>
-        </div>
       </header>
 
       {/* Ana içerik */}
