@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PDFParse } from "pdf-parse";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -29,17 +30,17 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Import inside handler: pdf-parse's index.js reads test/data/ at require-time,
-    // which doesn't exist in Vercel's build output and crashes the cold start.
-    // lib/pdf-parse.js is the actual parser without that side-effect.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (
-      buffer: Buffer
-    ) => Promise<{ text: string; numpages: number }>;
+    // pdf-parse v2.x uses a class-based API; the old function call and
+    // the lib/pdf-parse.js internal path from v1.x no longer exist.
+    const parser = new PDFParse({ data: buffer });
+    let result;
+    try {
+      result = await parser.getText();
+    } finally {
+      await parser.destroy();
+    }
 
-    const data = await pdfParse(buffer);
-
-    const text = data.text.trim();
+    const text = result.text.trim();
     if (!text) {
       return NextResponse.json(
         { error: "PDF içeriği okunamadı. Belge taranmış görüntü içeriyor olabilir." },
@@ -49,12 +50,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       text,
-      pageCount: data.numpages,
+      pageCount: result.total,
       fileName: file.name,
     });
-  } catch {
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[parse-pdf]", detail, err);
     return NextResponse.json(
-      { error: "PDF işlenirken bir hata oluştu. Dosyayı kontrol edip tekrar deneyin." },
+      { error: "PDF işlenirken bir hata oluştu.", detail },
       { status: 500 }
     );
   }
