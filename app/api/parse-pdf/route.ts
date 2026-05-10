@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-// No worker thread in serverless – pdfjs falls back to main-thread processing
-pdfjs.GlobalWorkerOptions.workerSrc = "";
+// Vercel Hobby caps at 10 s; Pro allows up to 60 s.
+// Large PDFs may timeout on Hobby — upgrade to Pro for documents > ~10 pages.
 
 export async function POST(request: NextRequest) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json(
+      { error: "Sunucu yapılandırma hatası: API anahtarı eksik." },
+      { status: 500 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vercel Hobby: 4.5 MB platform limit; Pro: 100 MB
+    // Vercel Hobby request body limit: 4.5 MB. Pro: 100 MB.
     const MAX_SIZE = parseInt(process.env.MAX_PDF_SIZE_MB ?? "4") * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       const limitMb = Math.round(MAX_SIZE / 1024 / 1024);
@@ -36,46 +43,51 @@ export async function POST(request: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(arrayBuffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      disableStream: true,
-      disableAutoFetch: true,
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Use Claude's native PDF support — no local parsing library needed.
+    // This is the only approach that is guaranteed to work in any serverless environment.
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: base64,
+              },
+            } as Anthropic.DocumentBlockParam,
+            {
+              type: "text",
+              text: "Bu PDF belgesindeki tüm metni çıkar. Başlıklar, paragraflar ve listeler dahil her şeyi olduğu gibi döndür. Yorum veya açıklama ekleme, yalnızca belgede yazan metni ver.",
+            },
+          ],
+        },
+      ],
     });
 
-    const doc = await loadingTask.promise;
-    const pageCount = doc.numPages;
-
-    const pageTexts: string[] = [];
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-      const page = await doc.getPage(pageNum);
-      const content = await page.getTextContent();
-
-      // TextItem has `str`+`hasEOL`; TextMarkedContent does not
-      const pageText = content.items
-        .filter((item) => "str" in item)
-        .map((item) => {
-          const { str, hasEOL } = item as { str: string; hasEOL: boolean };
-          return str + (hasEOL ? "\n" : " ");
-        })
-        .join("");
-
-      pageTexts.push(pageText.trim());
-      page.cleanup();
-    }
-
-    await doc.destroy();
-
-    const text = pageTexts.join("\n\n").trim();
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
 
     if (!text) {
       return NextResponse.json(
-        { error: "PDF içeriği okunamadı. Belge taranmış görüntü içeriyor olabilir." },
+        { error: "PDF içeriği okunamadı. Belge boş veya yalnızca görüntü içeriyor olabilir." },
         { status: 422 }
       );
     }
+
+    // Claude doesn't expose page count; estimate from character density (~2500 chars/page)
+    const pageCount = Math.max(1, Math.ceil(text.length / 2500));
 
     return NextResponse.json({ text, pageCount, fileName: file.name });
   } catch (err) {
