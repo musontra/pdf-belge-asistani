@@ -1,99 +1,103 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-import PDFUploader from "@/components/PDFUploader";
-import ChatInterface from "@/components/ChatInterface";
+const features = [
+  {
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+      </svg>
+    ),
+    title: "Türkçe Destek",
+    description: "Belgelerinizi Türkçe sorularla sorgulayın. Yanıtlar da Türkçe gelir.",
+  },
+  {
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+    title: "Anında Analiz",
+    description: "PDF yükleyin, saniyeler içinde içeriği anlayan yapay zeka devreye girsin.",
+  },
+  {
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+    title: "Güvenli",
+    description: "Belgeleriniz yalnızca oturumunuz boyunca işlenir, sunucuda saklanmaz.",
+  },
+];
 
-export default function Home() {
-  const [documentText, setDocumentText] = useState("");
-  const [documentName, setDocumentName] = useState("");
-  const [pageCount, setPageCount] = useState(0);
-  const [hasDocument, setHasDocument] = useState(false);
-
-  const handleDocumentReady = (text: string, name: string, pages: number) => {
-    setDocumentText(text);
-    setDocumentName(name);
-    setPageCount(pages);
-    setHasDocument(true);
-  };
-
-  const handleReset = () => {
-    setDocumentText("");
-    setDocumentName("");
-    setPageCount(0);
-    setHasDocument(false);
-  };
-
+export default function LandingPage() {
   return (
-    <div className="flex h-screen flex-col">
-      {/* Header */}
-      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
-          <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+    <div className="flex min-h-screen flex-col bg-white">
+      {/* Nav */}
+      <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+            <svg className="h-4.5 w-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <span className="text-sm font-bold text-slate-900">PDF Belge Asistanı</span>
         </div>
-        <div>
-          <h1 className="text-base font-bold text-slate-900">PDF Belge Asistanı</h1>
-          <p className="text-xs text-slate-500">Yapay zeka destekli belge analizi</p>
-        </div>
+        <Link
+          href="/app"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+        >
+          Uygulamayı Aç
+        </Link>
       </header>
 
-      {/* Ana içerik */}
-      <main className="flex flex-1 overflow-hidden">
-        {/* Sol panel – PDF yükleme */}
-        <aside className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r border-slate-200 bg-white p-5 lg:w-80">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-800">PDF Belgesi</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Analiz etmek istediğiniz PDF dosyasını yükleyin
-            </p>
-          </div>
+      {/* Hero */}
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-1.5 text-xs font-medium text-blue-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+          Yapay Zeka Destekli
+        </div>
 
-          <PDFUploader
-            onDocumentReady={handleDocumentReady}
-            hasDocument={hasDocument}
-            fileName={documentName}
-            pageCount={pageCount}
-            onReset={handleReset}
-          />
+        <h1 className="mt-6 max-w-2xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+          PDF Belgelerinizi{" "}
+          <span className="text-blue-600">Anında Anlayın</span>
+        </h1>
 
-          {!hasDocument && (
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Nasıl Kullanılır
-              </p>
-              <ol className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-start gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">1</span>
-                  PDF dosyanızı yükleyin
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">2</span>
-                  Belge hazır olduğunda bildirim alırsınız
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">3</span>
-                  Belge hakkında Türkçe soru sorun
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">4</span>
-                  Yapay zeka yanıtınızı üretir
-                </li>
-              </ol>
+        <p className="mt-5 max-w-xl text-lg text-slate-500">
+          Türkçe sorular sorun, yapay zeka cevaplasın.
+        </p>
+
+        <Link
+          href="/app"
+          className="mt-10 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-md transition hover:bg-blue-700 hover:shadow-lg active:scale-95"
+        >
+          Hemen Dene
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </Link>
+
+        {/* Özellik kartları */}
+        <div className="mt-20 grid w-full max-w-3xl gap-6 sm:grid-cols-3">
+          {features.map((f) => (
+            <div
+              key={f.title}
+              className="flex flex-col items-center rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center shadow-sm"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                {f.icon}
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-slate-800">{f.title}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">{f.description}</p>
             </div>
-          )}
-        </aside>
-
-        {/* Sağ panel – Chat */}
-        <section className="flex flex-1 flex-col overflow-hidden bg-slate-50">
-          <ChatInterface
-            documentText={documentText}
-            documentName={documentName}
-            isReady={hasDocument}
-          />
-        </section>
+          ))}
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-100 py-6 text-center text-xs text-slate-400">
+        PDF Belge Asistanı — Yapay zeka ile belge analizi
+      </footer>
     </div>
   );
 }
